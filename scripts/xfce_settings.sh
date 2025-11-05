@@ -47,32 +47,5 @@ if [ ! -f /home/$USER/.local/.xfce_settings_done ]; then
   # Reset panel(s) once (can all this be done, without the need of restarting?)
   xfce4-panel -r
 
-  # Change browser icon to Firefox
-  declare -i MAX_TRIES=25
-  declare -i COUNTER=0
-  while true; do
-    sleep 0.2
-    # Check if panel is started
-    PID_ID=$(pidof xfce4-panel)
-    if [ -n "$PID_ID" ]; then
-      launchName="launcher-19"
-      filename=$(ls /home/$USER/.config/xfce4/panel/$launchName/ | head -1)
-      filepath="/home/$USER/.config/xfce4/panel/$launchName/$filename"
-      # Check if file is already present
-      if [ -f "$filepath" ]; then
-        sed -i "s/Icon=.*/Icon=firefox/" "$filepath"
-        # Exit loop
-        break
-      fi
-
-      # Time-out (0.2 secs * 25), also break
-      if [ "$COUNTER" -gt "$MAX_TRIES" ]; then
-        break
-      fi
-      # Increase timer
-      let COUNTER++
-    fi
-  done
-
   touch /home/$USER/.local/.xfce_settings_done
 fi

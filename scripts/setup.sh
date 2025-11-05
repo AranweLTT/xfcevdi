@@ -15,12 +15,6 @@ sed -i "s/#PermitRootLogin.*/PermitRootLogin no/g" /etc/ssh/sshd_config
 ## Create D-bus daemon runtime directory
 mkdir -p /run/dbus
 
-
-## PulseAudio?
-# Should I create a /run/pulse maybe?
-# Should I create a /run/user/1000 (is that normal under Debian?)
-# Should I set XDG_RUNTIME_DIR env var to /run/user/1000
-
 ## Additional Firefox settings
 # Enable xrender in Firefox ESR (very useful for X2Go performance)
 echo 'pref("gfx.xrender.enabled", true);' >>/etc/firefox-esr/firefox-esr.js
@@ -43,16 +37,8 @@ echo 'pref("datareporting.policy.firstRunURL", "");' >>/etc/firefox-esr/firefox-
 useradd -ms /bin/bash -u "$USER_ID" -G "$GROUP_LIST" "$USERNAME"
 echo "$USERNAME:$PASS" | chpasswd
 
-# Allow user to execute apt commands (install new software)
-if [ "$ALLOW_APT" = "yes" ]; then
-  # We allow only apt commands
-  if [ "$ENTER_PASS" = "no" ]; then
-    # Allow sudo command without entering a password to the new user
-    echo "${USERNAME} ALL=(root) NOPASSWD:/usr/bin/apt update, /usr/bin/apt install *, /usr/bin/apt upgrade, /usr/bin/apt-get update, /usr/bin/apt-get install *, /usr/bin/apt-get upgrade" >>/etc/sudoers
-  else
-    echo "${USERNAME} ALL=(root) /usr/bin/apt update, /usr/bin/apt install *, /usr/bin/apt upgrade, /usr/bin/apt-get update, /usr/bin/apt-get install *, /usr/bin/apt-get upgrade" >>/etc/sudoers
-  fi
-fi
+# Allow sudo command without entering a password to the new user
+echo "${USERNAME} ALL=(root) NOPASSWD:/usr/bin/apt update, /usr/bin/apt install *, /usr/bin/apt upgrade, /usr/bin/apt-get update, /usr/bin/apt-get install *, /usr/bin/apt-get upgrade" >>/etc/sudoers
 
 # Show the password only once in the terminal
 echo ""

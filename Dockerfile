@@ -1,42 +1,28 @@
-FROM debian:bookworm
-
-LABEL maintainer="melroy@melroy.org"
+FROM debian:trixie
 
 # Default (run-time) environment variables
-# Used during initial setup
 ENV USERNAME=user
 ENV USER_ID=1000
-ENV ALLOW_APT=yes
-ENV ENTER_PASS=no
 
-# Build arguments, _only_ used during Docker build
+# Build arguments
 ARG DEBIAN_FRONTEND=noninteractive
-ARG APT_PROXY
 
 WORKDIR /app
-
-# Enable APT proxy (if APT_PROXY is set)
-COPY ./configs/apt.conf ./
-COPY ./scripts/apt_proxy.sh ./
-RUN ./apt_proxy.sh
 
 ## First install basic required packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     dirmngr gnupg gnupg-l10n \
     gnupg-utils gpg gpg-agent \
     gpg-wks-client gpg-wks-server gpgconf \
-    gpgsm libassuan0 libksba8 \
-    libldap-2.5-0 libldap-common libnpth0 \
+    gpgsm libksba8 \
+    libldap2 libldap-common libnpth0 \
     libreadline8 libsasl2-2 libsasl2-modules \
     libsasl2-modules-db libsqlite3-0 libssl3 \
     lsb-base pinentry-curses readline-common \
     apt-transport-https ca-certificates curl \
-    software-properties-common apt-utils net-tools
+    apt-utils net-tools
 
 ## Add additional repositories/components (software-properties-common is required to be installed)
-# Add contrib and non-free distro components (deb822-style format)
-# Note: apt-add-repository seems to be broken under Debian 12 :(
-#RUN apt-add-repository -y contrib non-free
 # Copy our own Debian sources file with contrib & non-free instead of apt-add-repository
 COPY ./configs/debian.sources /etc/apt/sources.list.d/debian.sources
 
@@ -58,33 +44,15 @@ COPY ./configs/x2go.list /etc/apt/sources.list.d/x2go.list
 ## Install X2Go server and session
 RUN apt update && apt-get install -y x2go-keyring && apt-get update
 RUN apt-get install -y x2goserver x2goserver-xsession
+
 ## Install important (or often used) dependency packages
 RUN apt-get install -y --no-install-recommends \
-    openssh-server \
-    pulseaudio \
-    pavucontrol \
-    dbus-x11 \
-    locales \
-    git \
-    wget \
-    sudo \
-    zip \
-    bzip2 \
-    unzip \
-    unrar \
-    ffmpeg \
-    pwgen \
-    nano \
-    file \
-    dialog \
-    at-spi2-core \
-    util-linux \
-    coreutils \
-    xdg-utils \
-    xz-utils \
-    x11-utils \
-    x11-xkb-utils \
-    cron
+    openssh-server ffmpeg pulseaudio pavucontrol \
+    dbus-x11 locales git wget sudo nano xterm \
+    zip bzip2 unzip unrar  \
+    pwgen cron at-spi2-core \
+    file dialog util-linux coreutils \
+    xdg-utils xz-utils x11-utils x11-xkb-utils 
 
 ## Add themes & fonts
 RUN apt-get install -y --no-install-recommends fonts-ubuntu breeze-gtk-theme mint-themes
@@ -122,9 +90,9 @@ RUN update-locale
 RUN rm -rf /etc/ssh/ssh_host_* && ssh-keygen -A
 RUN apt-get clean -y && rm -rf /usr/share/doc/* /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apk/*
 
-# Update timezone to The Netherlands
-RUN echo 'Europe/Amsterdam' >/etc/timezone
-RUN unlink /etc/localtime && ln -s /usr/share/zoneinfo/Europe/Amsterdam /etc/localtime
+# Update timezone to Paris
+RUN echo 'Europe/Paris' >/etc/timezone
+RUN unlink /etc/localtime && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime
 
 # Start default XFCE4 panels (don't ask for it)
 RUN mv -f /etc/xdg/xfce4/panel/default.xml /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
@@ -136,7 +104,6 @@ COPY ./configs/xfce4-settings.desktop /etc/xdg/autostart/
 RUN sed -i "s/Hidden=.*/Hidden=false/" /etc/xdg/autostart/xfce4-clipman-plugin-autostart.desktop
 # Remove unnecessary existing start-up apps
 RUN rm -rf /etc/xdg/autostart/light-locker.desktop /etc/xdg/autostart/xscreensaver.desktop
-
 # Change default terminal to xfce4-terminal
 RUN update-alternatives --set x-terminal-emulator /usr/bin/xfce4-terminal.wrapper
 
@@ -148,18 +115,17 @@ RUN useradd -d /app -s /bin/bash -u 1001 worker
 RUN echo "Defaults!/app/setup.sh setenv" >>/etc/sudoers
 # Limit the execute of the following commands of the worker user
 RUN echo "worker ALL=(root) NOPASSWD:/usr/sbin/service ssh start, /usr/sbin/service dbus start, /usr/sbin/service cron start, /app/setup.sh" >>/etc/sudoers
+
 # Copy worker scripts
 COPY ./scripts/setup.sh ./
 COPY ./configs/terminalrc ./
 COPY ./configs/whiskermenu-1.rc ./
 COPY ./scripts/xfce_settings.sh ./
 COPY ./scripts/run.sh ./
-# Print hello during worker bash start-up
-RUN echo 'echo "Info: Thank you for using Melroys VDI XFCE Docker image!"' >>/app/.bashrc
 
 # Run as worker
 USER worker
 
-EXPOSE 22
+EXPOSE 22/tcp
 
 CMD ["/bin/bash", "/app/run.sh"]
