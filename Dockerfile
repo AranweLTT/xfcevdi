@@ -1,4 +1,5 @@
-FROM debian:trixie
+ARG TAG=trixie
+FROM debian:$TAG
 
 # Default (run-time) environment variables
 ENV USERNAME=user
@@ -9,6 +10,81 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
+# -----------------------------
+# Required packages for building
+# -----------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential python3 python3-dev \
+        dpkg-dev pkg-config git ca-certificates \
+        libx11-dev libxrender1 libxrender-dev libxcb1 libx11-xcb-dev \
+        libcairo2 libcairo2-dev tcl8.6 tcl8.6-dev tk8.6 tk8.6-dev flex bison libxpm4 \
+        libxpm-dev libjpeg-dev libgtk-3-dev gettext \
+        libxaw7 libxaw7-dev libx11-dev libreadline8 libxmu6 \
+        libtool gperf libxml2 libxml2-dev libxml-libxml-perl libgd-perl \
+        g++ gfortran make cmake libfl-dev libfftw3-dev automake libreadline-dev \
+        qtbase5-dev qttools5-dev libqt5xmlpatterns5-dev qtmultimedia5-dev \
+        libqt5multimediawidgets5 libqt5svg5-dev \
+        ruby ruby-dev libz-dev libgit2-dev \
+    && git config --global http.sslVerify false \
+    && git config --global core.autocrlf false
+
+# -----------------------------
+# Compile and install toolchain
+# -----------------------------
+# Install XSCHEM
+RUN git clone https://github.com/StefanSchippers/xschem.git xschem_git \
+    && cd xschem_git \
+    && ./configure \
+    && make \
+    && make install
+
+# Install Magic
+RUN git clone https://github.com/RTimothyEdwards/magic magic_git \
+    && cd magic_git \
+    && ./configure \
+    && make \
+    && make install
+
+# Install Netgen
+RUN git clone https://github.com/RTimothyEdwards/netgen netgen_git \
+    && cd netgen_git \
+    && ./configure \
+    && make \
+    && make install
+
+# Install NGSPICE
+RUN git clone https://git.code.sf.net/p/ngspice/ngspice ngspice_git \
+    && cd ngspice_git \
+    && mkdir release \
+    && ./autogen.sh \
+    && cd release \
+    && ../configure --with-x --enable-xspice --disable-debug --enable-cider --with-readline=yes --enable-openmp --enable-osdi --enable-float --enable-sse \
+    && make \
+    && make install
+
+# Install GAW
+RUN git clone https://github.com/StefanSchippers/xschem-gaw.git xschem_gaw_git \
+    && cd xschem_gaw_git \
+    && sed -i 's/^GETTEXT_MACRO_VERSION = .*/GETTEXT_MACRO_VERSION = 0.22/' po/Makefile.in.in \
+    && aclocal \
+    && autoconf \
+    && autoheader \
+    && automake --add-missing \
+    && ./configure \
+    && make \
+    && make install
+
+# Install KLayout
+RUN git clone https://github.com/KLayout/klayout.git klayout_git \
+    && cd klayout_git \
+    && ./build.sh -j$(nproc) -prefix /usr/local/share/klayout -python /usr/bin/python3 \
+    && cd build-release \
+    && make install \
+    && ln -s /usr/local/share/klayout/klayout /usr/local/bin/klayout
+
+# -----------------------------
+# Desktop environment setup
+# -----------------------------
 ## First install basic required packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     dirmngr gnupg gnupg-l10n \
@@ -49,15 +125,15 @@ RUN apt-get install -y x2goserver x2goserver-xsession
 RUN apt-get install -y --no-install-recommends \
     openssh-server ffmpeg pulseaudio pavucontrol \
     dbus-x11 locales git wget sudo nano xterm \
-    zip bzip2 unzip unrar  \
+    zip bzip2 unzip unrar geany \
     pwgen cron at-spi2-core \
     file dialog util-linux coreutils \
-    xdg-utils xz-utils x11-utils x11-xkb-utils 
+    xdg-utils xz-utils x11-utils x11-xkb-utils \
+    latexmk texlive-base texlive-publishers \
+    texlive-lang-french texlive-science
 
 ## Add themes & fonts
 RUN apt-get install -y --no-install-recommends fonts-ubuntu breeze-gtk-theme mint-themes
-# Don't add papirus icons (can be comment-out if you want)
-#RUN apt install -y papirus-icon-theme
 
 # Add LibreOffice
 RUN apt install -y libreoffice-base libreoffice-base-core libreoffice-common libreoffice-core libreoffice-base-drivers \
