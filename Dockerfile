@@ -190,7 +190,7 @@ RUN usermod -s /usr/sbin/nologin root
 RUN useradd -d /app -s /bin/bash -u 1001 worker
 RUN echo "Defaults!/app/setup.sh setenv" >>/etc/sudoers
 # Limit the execute of the following commands of the worker user
-RUN echo "worker ALL=(root) NOPASSWD:/usr/sbin/service ssh start, /usr/sbin/service dbus start, /usr/sbin/service cron start, /app/setup.sh" >>/etc/sudoers
+RUN echo "worker ALL=(root) NOPASSWD:/usr/sbin/service dbus start, /usr/sbin/service cron start, /usr/sbin/sshd, /usr/bin/ssh-keygen, /app/setup.sh" >>/etc/sudoers
 
 # Copy worker scripts
 COPY ./scripts/setup.sh ./
@@ -204,4 +204,4 @@ USER worker
 
 EXPOSE 22/tcp
 
-CMD ["/bin/bash", "/app/run.sh"]
+CMD ["/app/run.sh"]
